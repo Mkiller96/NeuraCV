@@ -1,0 +1,27 @@
+# Backend (Laravel)
+/backend/.env
+/backend/vendor
+/backend/node_modules
+/backend/storage/*.key
+/backend/storage/pail
+/backend/public/hot
+/backend/public/storage
+/backend/public/build
+/backend/bootstrap/cache/*.php
+/backend/.phpunit.result.cache
+
+# Frontend (Next.js)
+/frontend/.next
+/frontend/node_modules
+/frontend/out
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
