@@ -1,94 +1,21 @@
-FROM php:8.3-cli AS base
+FROM php:8.2-fpm
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    libpq-dev \
-    libzip-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    git curl libpng-dev libonig-dev libxml2-dev zip unzip nginx supervisor
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip
+RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
 WORKDIR /var/www
-
-# Copy application files
 COPY . .
 
-# Install dependencies
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+RUN composer install --no-interaction --optimize-autoload --no-dev
 
-# Create storage link
-RUN php artisan storage:link || true
+RUN chown -R www-data:www-data /var/www \
+    && chmod -R 755 /var/www/storage \
+    && chmod -R 755 /var/www/bootstrap/cache
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
+EXPOSE 80
 
-# Expose port
-EXPOSE 8000
-
-# ============================================
-# Production stage with FrankenPHP (recommended)
-# ============================================
-FROM dunglas/frankenphp:1-php8.3 AS frankenphp
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    libpq-dev \
-    libzip-dev \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring exif pcntl bcmath gd zip
-
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
-
-# Set working directory
-WORKDIR /var/www
-
-# Copy application files
-COPY . .
-
-# Install dependencies
-RUN composer install --no-interaction --optimize-autoloader --no-dev
-
-# Create storage link
-RUN php artisan storage:link || true
-
-# Optimize for production
-RUN php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache
-
-# Set permissions
-RUN chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
-
-# Configure FrankenPHP for Laravel
-ENV SERVER_NAME=:8000
-ENV FRANKENPHP_CONFIG="worker /var/www/public/index.php"
-
-# Expose port
-EXPOSE 8000
-
-# Start FrankenPHP
-CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]
+CMD ["php-fpm"]
