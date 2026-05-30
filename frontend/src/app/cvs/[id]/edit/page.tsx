@@ -31,6 +31,7 @@ import {
   Globe,
   Palette,
   Brain,
+  Star,
 } from "lucide-react";
 
 type Tab =
@@ -298,6 +299,10 @@ export default function EditCVPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al eliminar idioma");
     }
+  };
+
+  const handleSelectTemplate = (templateId: number) => {
+    setSelectedTemplateId(templateId);
   };
 
   // Template
@@ -911,4 +916,280 @@ export default function EditCVPage() {
                       <span className="text-sm font-medium text-zinc-900 dark:text-white">
                         {skill.name}
                       </span>
-                      {skill.category &&
+                      {skill.category && (
+                        <span className="text-xs text-zinc-400">{skill.category}</span>
+                      )}
+                      <button
+                        onClick={() => handleDeleteSkill(skill.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Skill Form */}
+                <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-4">
+                    Añadir habilidad
+                  </h3>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        Nombre
+                      </label>
+                      <input
+                        value={newSkill.name}
+                        onChange={(e) =>
+                          setNewSkill((prev) => ({ ...prev, name: e.target.value }))
+                        }
+                        className="mt-1 block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        Categoría
+                      </label>
+                      <input
+                        value={newSkill.category || ""}
+                        onChange={(e) =>
+                          setNewSkill((prev) => ({ ...prev, category: e.target.value }))
+                        }
+                        className="mt-1 block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        Nivel (1-100)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={newSkill.proficiency || 50}
+                        onChange={(e) =>
+                          setNewSkill((prev) => ({ ...prev, proficiency: parseInt(e.target.value) || 50 }))
+                        }
+                        className="mt-1 block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <Button onClick={handleAddSkill} size="sm">
+                      <Plus className="h-4 w-4" />
+                      Añadir habilidad
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Languages */}
+            {activeTab === "languages" && (
+              <div className="space-y-6">
+                <div className="flex flex-wrap gap-3">
+                  {languages.map((language) => (
+                    <div
+                      key={language.id}
+                      className="group inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900"
+                    >
+                      <span className="text-sm font-medium text-zinc-900 dark:text-white">
+                        {language.name}
+                      </span>
+                      <span className="text-xs text-zinc-400">{language.proficiency}</span>
+                      <button
+                        onClick={() => handleDeleteLanguage(language.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Language Form */}
+                <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-4">
+                    Añadir idioma
+                  </h3>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        Idioma
+                      </label>
+                      <input
+                        value={newLanguage.name}
+                        onChange={(e) =>
+                          setNewLanguage((prev) => ({ ...prev, name: e.target.value }))
+                        }
+                        className="mt-1 block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        Nivel
+                      </label>
+                      <select
+                        value={newLanguage.proficiency}
+                        onChange={(e) =>
+                          setNewLanguage((prev) => ({
+                            ...prev,
+                            proficiency: e.target.value as LanguagePayload["proficiency"],
+                          }))
+                        }
+                        className="mt-1 block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      >
+                        <option value="basic">Básico</option>
+                        <option value="intermediate">Intermedio</option>
+                        <option value="advanced">Avanzado</option>
+                        <option value="native">Nativo</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-end">
+                    <Button onClick={handleAddLanguage} size="sm">
+                      <Plus className="h-4 w-4" />
+                      Añadir idioma
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Template */}
+            {activeTab === "template" && (
+              <div className="space-y-6">
+                <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-4">
+                    Seleccionar plantilla
+                  </h3>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {templates.map((template) => (
+                      <div
+                        key={template.id}
+                        onClick={() => handleSelectTemplate(template.id)}
+                        className={`cursor-pointer rounded-xl border-2 p-4 transition-all hover:shadow-md ${
+                          selectedTemplateId === template.id
+                            ? "border-violet-500 bg-violet-50 dark:bg-violet-900/20"
+                            : "border-zinc-200 dark:border-zinc-700"
+                        }`}
+                      >
+                        <div className="aspect-[210/297] mb-3 rounded-lg bg-gradient-to-br from-zinc-100 to-zinc-200 dark:from-zinc-700 dark:to-zinc-800" />
+                        <h4 className="text-sm font-medium text-zinc-900 dark:text-white">
+                          {template.name}
+                        </h4>
+                        {template.is_premium && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                            <Star className="h-3 w-3" />
+                            Premium
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* AI */}
+            {activeTab === "ai" && (
+              <div className="space-y-6">
+                <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-white mb-2 flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-violet-500" />
+                    Mejorar con IA
+                  </h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">
+                    Usa inteligencia artificial para mejorar el contenido de tu CV.
+                  </p>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                        Sección a mejorar
+                      </label>
+                      <select
+                        value={aiSection}
+                        onChange={(e) => setAiSection(e.target.value as typeof aiSection)}
+                        className="block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                      >
+                        <option value="professional_summary">Resumen profesional</option>
+                        <option value="experience_description">Descripción de experiencia</option>
+                        <option value="education_description">Descripción de educación</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                        Contenido actual
+                      </label>
+                      <textarea
+                        value={aiContent}
+                        onChange={(e) => setAiContent(e.target.value)}
+                        rows={4}
+                        className="block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white resize-y"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
+                        Contexto adicional (opcional)
+                      </label>
+                      <textarea
+                        value={aiContext}
+                        onChange={(e) => setAiContext(e.target.value)}
+                        rows={2}
+                        placeholder="Ej: Busco trabajo como desarrollador senior..."
+                        className="block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white resize-y"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={handleImproveWithAI}
+                        disabled={aiLoading || !aiContent}
+                      >
+                        {aiLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Mejorando...
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="h-4 w-4" />
+                            Mejorar con IA
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    {aiResult && (
+                      <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-800 dark:bg-violet-900/20">
+                        <h4 className="text-xs font-semibold text-violet-700 dark:text-violet-300 mb-2">
+                          Resultado
+                        </h4>
+                        <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">
+                          {aiResult}
+                        </p>
+                        <div className="mt-3 flex justify-end">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (aiSection === "professional_summary") {
+                                setFormData((prev) => ({ ...prev, professional_summary: aiResult }));
+                              }
+                              setAiResult("");
+                            }}
+                          >
+                            Aplicar cambios
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
