@@ -11,19 +11,29 @@ WORKDIR /var/www
 
 COPY . .
 
+RUN composer install --no-interaction --optimize-autoloader --no-dev
+
+# Copy custom PHP-FPM config (listen on TCP 127.0.0.1:9000)
+COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-docker.conf
+
+# Copy Nginx and Supervisor configuration files
+COPY docker/nginx.conf /etc/nginx/sites-available/default
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
 RUN chown -R www-data:www-data /var/www \
     && chmod -R 755 /var/www \
     && chmod -R 755 /var/www/storage \
     && chmod -R 755 /var/www/bootstrap/cache
 
-# Copy Nginx and Supervisor configuration files
-COPY backend/nginx.conf /etc/nginx/sites-available/default
-COPY backend/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Nginx runs as www-data; ensure log directories are accessible
+# Nginx logs to stdout/stderr
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
 EXPOSE 8000
 
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD php artisan key:generate --force && \
+    php artisan migrate --force && \
+    php artisan db:seed --force && \
+    /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf
