@@ -8,17 +8,17 @@ RUN apt-get update && apt-get install -y \
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
+
 COPY . .
 
-RUN composer install --no-interaction --optimize-autoloader --no-dev
-
 RUN chown -R www-data:www-data /var/www \
+    && chmod -R 755 /var/www \
     && chmod -R 755 /var/www/storage \
     && chmod -R 755 /var/www/bootstrap/cache
 
 # Copy Nginx and Supervisor configuration files
-COPY nginx.conf /etc/nginx/sites-available/default
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY backend/nginx.conf /etc/nginx/sites-available/default
+COPY backend/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Nginx runs as www-data; ensure log directories are accessible
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
