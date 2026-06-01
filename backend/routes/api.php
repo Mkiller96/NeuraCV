@@ -6,6 +6,11 @@ use App\Http\Controllers\CVController;
 use App\Http\Controllers\TemplateController;
 use Illuminate\Support\Facades\Route;
 
+// Health check (sin verificación de DB ni Redis)
+Route::get('/health', function () {
+    return response()->json(['status' => 'ok', 'time' => now()]);
+});
+
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);

@@ -34,6 +34,4 @@ RUN ln -sf /dev/stdout /var/log/nginx/access.log \
 EXPOSE 8000
 
 CMD php artisan key:generate --force && \
-    php artisan migrate --force && \
-    php artisan db:seed --force && \
     /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf
