@@ -9,16 +9,14 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-COPY . .
-
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+COPY backend/ .
 
 # Copy custom PHP-FPM config (listen on TCP 127.0.0.1:9000)
-COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-docker.conf
+COPY backend/docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-docker.conf
 
 # Copy Nginx and Supervisor configuration files
-COPY docker/nginx.conf /etc/nginx/sites-available/default
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY backend/docker/nginx.conf /etc/nginx/sites-available/default
+COPY backend/docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
@@ -34,4 +32,7 @@ RUN ln -sf /dev/stdout /var/log/nginx/access.log \
 EXPOSE 8000
 
 CMD php artisan key:generate --force && \
+    php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache && \
     /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf
