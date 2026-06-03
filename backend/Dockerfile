@@ -9,9 +9,17 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
+# First copy only composer files to leverage Docker cache layers
+COPY backend/composer.json backend/composer.lock ./
+
+# Install dependencies (this creates vendor/)
+RUN composer install --no-interaction --optimize-autoloader --no-dev && \
+    ls -la vendor/autoload.php || (echo "vendor/autoload.php not found!" && exit 1)
+
+# Now copy the rest of the application
 COPY backend/ .
 
-# Copy custom PHP-FPM config (listen on TCP 127.0.0.1:9000)
+# Copy custom PHP-FPM config
 COPY backend/docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-docker.conf
 
 # Copy Nginx and Supervisor configuration files
