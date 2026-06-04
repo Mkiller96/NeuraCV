@@ -32,6 +32,7 @@ RUN ln -sf /dev/stdout /var/log/nginx/access.log \
 
 EXPOSE 8000
 
+# Generate APP_KEY only if not set, cache config, and start services
 CMD php artisan key:generate --force && \
     php artisan config:cache && \
     php artisan route:cache && \

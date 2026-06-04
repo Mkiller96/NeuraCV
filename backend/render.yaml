@@ -46,7 +46,7 @@ services:
       - key: APP_DEBUG
         value: false
       - key: APP_URL
-        value: https://api.neurocv.onrender.com
+        value: https://neuracy-api.onrender.com
       - key: APP_LOCALE
         value: es
       - key: APP_FALLBACK_LOCALE
