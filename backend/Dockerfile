@@ -13,8 +13,7 @@ WORKDIR /var/www
 COPY composer.json composer.lock ./
 
 # Install PHP dependencies
-RUN composer install --no-interaction --optimize-autoloader --no-dev \
-    && ls -la vendor/autoload.php || (echo "vendor/autoload.php not found!" && exit 1)
+RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Copy the rest of the application
 COPY . .
