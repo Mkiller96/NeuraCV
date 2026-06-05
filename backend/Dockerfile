@@ -30,12 +30,9 @@ RUN chown -R www-data:www-data /var/www \
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
+# Make entrypoint executable
+RUN chmod +x /var/www/docker-entrypoint.sh
+
 EXPOSE 8000
 
-# Generate APP_KEY only if not set, cache config, and start services
-CMD php artisan key:generate --force && \
-    php artisan config:cache && \
-    php artisan route:cache && \
-    php artisan view:cache && \
-    sed -i "s/listen 8000/listen ${PORT:-8000}/g" /etc/nginx/sites-available/default && \
-    /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf
+ENTRYPOINT ["/var/www/docker-entrypoint.sh"]
