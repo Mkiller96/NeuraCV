@@ -46,7 +46,7 @@ services:
       - key: APP_DEBUG
         value: false
       - key: APP_URL
-        value: https://neuracy-api.onrender.com
+        value: https://api.neurocv.net
       - key: APP_LOCALE
         value: es
       - key: APP_FALLBACK_LOCALE
@@ -72,6 +72,6 @@ services:
       - key: CACHE_STORE
         value: database
       - key: FRONTEND_URL
-        value: https://neurocv.vercel.app
+        value: https://neurocv.net
       - key: SANCTUM_STATEFUL_DOMAINS
-        value: neurocv.vercel.app,localhost:3000
+        value: neurocv.net,www.neurocv.net,localhost:3000

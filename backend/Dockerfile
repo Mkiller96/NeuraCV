@@ -18,7 +18,7 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
-# Create .env from example (will be overridden by Railway env vars at runtime)
+# Create .env from .env.example
 RUN if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env && echo "Created .env from .env.example"; fi
 
 # Install PHP dependencies
@@ -38,4 +38,7 @@ RUN chmod +x /var/www/docker-entrypoint.sh
 
 EXPOSE 8000
 
+# Use both ENTRYPOINT and CMD to ensure the entrypoint runs regardless
+# of Railway's runtime behavior. Railway may override one or the other.
 ENTRYPOINT ["/var/www/docker-entrypoint.sh"]
+CMD ["/var/www/docker-entrypoint.sh"]

@@ -4,7 +4,7 @@
 # NeuraCV - Script de Deploy Automatizado
 # ============================================
 # Uso: bash deploy.sh
-# Requisitos: Git, Vercel CLI
+# Requisitos: Git, Vercel CLI (opcional)
 # ============================================
 
 set -e
@@ -42,7 +42,11 @@ print_error() {
     exit 1
 }
 
-TOTAL_STEPS=6
+print_warning() {
+    echo -e "${YELLOW}⚠ $1${NC}"
+}
+
+TOTAL_STEPS=8
 
 # Verificar herramientas
 echo "Verificando herramientas necesarias..."
@@ -53,10 +57,19 @@ check_command npm
 # Verificar Vercel CLI (opcional)
 if command -v vercel &> /dev/null; then
     VERCEL_INSTALLED=true
-    echo -e "${GREEN}✓ Vercel CLI detectado${NC}"
+    print_success "Vercel CLI detectado"
 else
     VERCEL_INSTALLED=false
-    echo -e "${YELLOW}⚠ Vercel CLI no detectado. Puedes instalarlo con: npm install -g vercel${NC}"
+    print_warning "Vercel CLI no detectado. Puedes instalarlo con: npm install -g vercel"
+fi
+
+# Verificar Railway CLI (opcional)
+if command -v railway &> /dev/null; then
+    RAILWAY_INSTALLED=true
+    print_success "Railway CLI detectado"
+else
+    RAILWAY_INSTALLED=false
+    print_warning "Railway CLI no detectado. Instálalo con: npm install -g @railway/cli"
 fi
 
 echo ""
@@ -85,11 +98,90 @@ else
 fi
 
 # ============================================
-# PASO 2: Build del Frontend
+# PASO 2: Verificar .env y variables de entorno
 # ============================================
-print_step 2 "Construyendo Frontend (Next.js)..."
+print_step 2 "Verificando .env del Backend..."
 
-cd frontend
+cd backend
+
+# Verificar que existe .env
+if [ ! -f ".env" ]; then
+    if [ -f ".env.example" ]; then
+        echo "Creando .env desde .env.example..."
+        cp .env.example .env
+        php artisan key:generate
+        print_success ".env creado y APP_KEY generada"
+    else
+        print_error "No se encontró .env ni .env.example en backend/"
+    fi
+fi
+
+# Cargar variables del .env
+source .env 2>/dev/null || true
+
+echo ""
+echo "  Variables configuradas en .env:"
+echo "  ┌─────────────────────────────┬──────────────────────────────────────┐"
+echo "  │ APP_URL                     │ ${APP_URL:-<no configurado>}         │"
+echo "  │ DB_CONNECTION               │ ${DB_CONNECTION:-<no configurado>}   │"
+echo "  │ DB_HOST                     │ ${DB_HOST:-<no configurado>}         │"
+echo "  │ DB_DATABASE                 │ ${DB_DATABASE:-<no configurado>}     │"
+echo "  │ DEEPSEEK_API_KEY            │ ${DEEPSEEK_API_KEY:+****configurado****}${DEEPSEEK_API_KEY:-<no configurado>} │"
+echo "  │ FRONTEND_URL                │ ${FRONTEND_URL:-<no configurado>}    │"
+echo "  └─────────────────────────────┴──────────────────────────────────────┘"
+echo ""
+
+# ============================================
+# PASO 3: Verificar conexión a PostgreSQL (Supabase)
+# ============================================
+print_step 3 "Verificando conexión a la base de datos (PostgreSQL - Supabase)..."
+
+DB_HOST="${DB_HOST:-db.gnfdxtadtcorogklhwbs.supabase.co}"
+DB_PORT="${DB_PORT:-5432}"
+DB_DATABASE="${DB_DATABASE:-postgres}"
+DB_USERNAME="${DB_USERNAME:-postgres}"
+DB_PASSWORD="${DB_PASSWORD:-NeuroCV2026}"
+
+if command -v psql &> /dev/null; then
+    echo "  Probando conexión a PostgreSQL en $DB_HOST:$DB_PORT..."
+    if PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_DATABASE" -c "SELECT 1" -t 2>/dev/null | grep -q 1; then
+        print_success "Conexión a PostgreSQL exitosa"
+    else
+        print_warning "No se pudo conectar a PostgreSQL. Verifica credenciales o conectividad."
+        echo "  Recuerda: Supabase requiere SSL y allowlisting de IPs en producción."
+    fi
+else
+    print_warning "psql no instalado. No se pudo verificar conexión a PostgreSQL."
+    echo "  Para instalar: apt-get install postgresql-client (Linux) o brew install libpq (Mac)"
+fi
+
+# ============================================
+# PASO 4: Verificar Redis (opcional - no disponible en Railway free)
+# ============================================
+print_step 4 "Verificando Redis..."
+
+REDIS_HOST="${REDIS_HOST:-127.0.0.1}"
+REDIS_PORT="${REDIS_PORT:-6379}"
+
+if command -v redis-cli &> /dev/null; then
+    if redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping 2>/dev/null | grep -q "PONG"; then
+        print_success "Conexión a Redis exitosa"
+    else
+        print_warning "Redis no está disponible en $REDIS_HOST:$REDIS_PORT"
+        echo "  La app usará sesiones en BD y cache en archivos como fallback."
+        echo "  Railway free tier no incluye Redis. Si lo necesitas, agrega Redis en Railway Dashboard."
+    fi
+else
+    print_warning "redis-cli no instalado. No se pudo verificar Redis."
+    echo "  La app usará sesiones en BD y cache en archivos como fallback."
+fi
+
+# ============================================
+# PASO 5: Build del Frontend
+# ============================================
+print_step 5 "Construyendo Frontend (Next.js)..."
+
+cd ../frontend
 
 echo "Instalando dependencias..."
 npm install --silent
@@ -106,9 +198,9 @@ fi
 cd ..
 
 # ============================================
-# PASO 3: Verificar Backend
+# PASO 6: Verificar Backend (Laravel)
 # ============================================
-print_step 3 "Verificando Backend (Laravel)..."
+print_step 6 "Verificando Backend (Laravel)..."
 
 cd backend
 
@@ -119,65 +211,89 @@ else
     composer install --no-interaction --optimize-autoloader --no-dev
 fi
 
-if [ ! -f ".env" ]; then
-    echo "Creando .env desde .env.example..."
-    cp .env.example .env
+# Generar APP_KEY si no existe
+if grep -q "APP_KEY=$" .env || ! grep -q "APP_KEY=" .env; then
+    echo "Generando APP_KEY..."
     php artisan key:generate
-    print_success ".env creado y APP_KEY generada"
+    print_success "APP_KEY generada"
 fi
 
 cd ..
 
 # ============================================
-# PASO 4: Deploy Backend
+# PASO 7: Deploy Backend a Railway
 # ============================================
-print_step 4 "Desplegando Backend..."
+print_step 7 "Desplegando Backend a Railway..."
 
 echo ""
-echo "  Opciones de deploy para el backend:"
-echo "    1. Railway  (recomendado - más rápido, auto SSL)"
-echo "    2. Render   (alternativa - más estable)"
+echo "  ╔══════════════════════════════════════════════════════════════╗"
+echo "  ║              DEPLOY A RAILWAY                                ║"
+echo "  ╠══════════════════════════════════════════════════════════════╣"
+echo "  ║  railway.json (raíz) → builder: DOCKERFILE                   ║"
+echo "  ║  → dockerfilePath: backend/Dockerfile                        ║"
+echo "  ║  → healthcheck: /api/health                                  ║"
+echo "  ╠══════════════════════════════════════════════════════════════╣"
+echo "  ║  Opción 1: Dashboard (recomendado)                           ║"
+echo "  ║  1. Ve a https://railway.app → New Project                   ║"
+echo "  ║  2. Deploy from GitHub repo → Mkiller96/NeuraCV              ║"
+echo "  ║  3. Add PostgreSQL (o configura Supabase manualmente)        ║"
+echo "  ║  4. Agrega variables de entorno en el Dashboard              ║"
+echo "  ╠══════════════════════════════════════════════════════════════╣"
+echo "  ║  Opción 2: Railway CLI (si lo tienes)                        ║"
+echo "  ║  railway login                                               ║"
+echo "  ║  railway link                                                ║"
+echo "  ║  railway up --detach                                         ║"
+echo "  ╠══════════════════════════════════════════════════════════════╣"
+echo "  ║  Opción 3: Git push (auto-deploy)                            ║"
+echo "  ║  git push origin main                                        ║"
+echo "  ╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-echo -e "${YELLOW}Elige una opción (1 o 2):${NC}"
-read -r backend_choice
-
-if [[ "$backend_choice" == "1" ]]; then
-    echo "Desplegando a Railway..."
-    echo ""
-    echo "  Para desplegar en Railway:"
-    echo "  1. Ve a https://railway.app y abre el proyecto NeuraCV"
-    echo "  2. Conecta el repositorio GitHub: Mkiller96/NeuraCV"
-    echo "  3. Railway detectará automáticamente el Dockerfile en backend/"
-    echo "  4. Configura las variables de entorno en el Dashboard"
-    echo "  5. Conecta tu Supabase PostgreSQL como base de datos"
-    echo ""
-    echo "  ⚠ IMPORTANTE: Asegúrate de que el railway.json en la raíz"
-    echo "    tenga la configuración: builder=DOCKERFILE, dockerfilePath=backend/Dockerfile"
-    echo ""
-
-elif [[ "$backend_choice" == "2" ]]; then
-    echo "Desplegando a Render..."
-    echo ""
-    echo "  Para desplegar en Render:"
-    echo "  1. Ve a https://render.com"
-    echo "  2. Clic en 'New +' > 'Blueprint'"
-    echo "  3. Conecta tu repositorio GitHub: Mkiller96/NeuraCV"
-    echo "  4. Render usará el archivo backend/render.yaml automáticamente"
-    echo "  5. Configura las variables de entorno en el Dashboard:"
-    echo "     - DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD (de Supabase)"
-    echo "     - DEEPSEEK_API_KEY"
-    echo "     - APP_KEY (generar con: php artisan key:generate --show)"
-    echo ""
+echo -e "${YELLOW}¿Quieres abrir el Dashboard de Railway ahora? (s/n)${NC}"
+read -r open_railway
+if [[ "$open_railway" == "s" ]]; then
+    if command -v xdg-open &> /dev/null; then
+        xdg-open "https://railway.app"
+    elif command -v open &> /dev/null; then
+        open "https://railway.app"
+    else
+        echo "Abre manualmente: https://railway.app"
+    fi
 fi
 
+echo ""
+
 # ============================================
-# PASO 5: Deploy Frontend a Vercel
+# PASO 7.5: Configurar variables en Railway
 # ============================================
-print_step 5 "Desplegando Frontend a Vercel..."
+echo "  Variables de entorno para Railway Dashboard:"
+echo "  ┌─────────────────────────────┬──────────────────────────────────────┐"
+echo "  │ Variable                    │ Valor                                │"
+echo "  ├─────────────────────────────┼──────────────────────────────────────┤"
+echo "  │ APP_KEY                     │ $(grep APP_KEY backend/.env | cut -d= -f2) │"
+echo "  │ APP_URL                     │ https://api.neurocv.net              │"
+echo "  │ DB_CONNECTION               │ pgsql                                │"
+echo "  │ DB_HOST                     │ ${DB_HOST}                  │"
+echo "  │ DB_PORT                     │ ${DB_PORT}                           │"
+echo "  │ DB_DATABASE                 │ ${DB_DATABASE}                       │"
+echo "  │ DB_USERNAME                 │ ${DB_USERNAME}                       │"
+echo "  │ DB_PASSWORD                 │ **** (configurada en .env)           │"
+echo "  │ DEEPSEEK_API_KEY            │ **** (configurada en .env)           │"
+echo "  │ FRONTEND_URL                │ https://neurocv.net                  │"
+echo "  │ SANCTUM_STATEFUL_DOMAINS    │ neurocv.net,www.neurocv.net          │"
+echo "  │ REDIS_HOST                  │ (opcional, Railway Redis addon)      │"
+echo "  │ REDIS_PORT                  │ (opcional, Railway Redis addon)      │"
+echo "  │ REDIS_PASSWORD              │ (opcional, Railway Redis addon)      │"
+echo "  └─────────────────────────────┴──────────────────────────────────────┘"
+echo ""
+
+# ============================================
+# PASO 8: Deploy Frontend a Vercel
+# ============================================
+print_step 8 "Desplegando Frontend a Vercel..."
 
 if [ "$VERCEL_INSTALLED" = true ]; then
-    echo "¿Quieres desplegar el frontend a Vercel ahora? (s/n)"
+    echo -e "${YELLOW}¿Quieres desplegar el frontend a Vercel ahora? (s/n)${NC}"
     read -r response
     if [[ "$response" == "s" ]]; then
         cd frontend
@@ -189,43 +305,57 @@ if [ "$VERCEL_INSTALLED" = true ]; then
     fi
 else
     echo -e "${YELLOW}Para desplegar manualmente en Vercel:${NC}"
-    echo "  1. Conecta tu repositorio en https://vercel.com"
-    echo "  2. Importa el proyecto (directorio: frontend/)"
-    echo "  3. Vercel detectará Next.js automáticamente"
-    echo "  4. Configura variable de entorno:"
-    echo "     - NEXT_PUBLIC_API_URL=https://neuracy-api.up.railway.app/api"
+    echo "  1. Ve a https://vercel.com/import"
+    echo "  2. Importa el repositorio Mkiller96/NeuraCV"
+    echo "  3. Configura: Root Directory = frontend/"
+    echo "  4. Framework = Next.js (automático)"
+    echo "  5. Environment Variable:"
+    echo "     - NEXT_PUBLIC_API_URL = https://api.neurocv.net/api"
+    echo "  6. Deploy"
     echo ""
 fi
 
 # ============================================
-# PASO 6: Resumen
+# RESUMEN FINAL
 # ============================================
-print_step 6 "Generando resumen del deploy..."
-
 echo ""
 echo "============================================"
 echo "  📋 RESUMEN DEL DEPLOY"
 echo "============================================"
 echo ""
-echo "  Frontend:  https://neurocv.vercel.app"
-echo "  Backend:   https://neuracy-api.up.railway.app (o Render)"
-echo "  API Docs:  https://neuracy-api.up.railway.app/api"
+  echo "  Frontend:         https://neurocv.net"
+  echo "  Backend:          https://api.neurocv.net"
+  echo "  API Base:         https://api.neurocv.net/api"
+  echo "  Health Check:     https://api.neurocv.net/api/health"
 echo ""
-echo "  Variables de entorno requeridas:"
-echo "  ┌─────────────────────────────┬──────────────────────────────────────┐"
-echo "  │ Variable                    │ Dónde configurarla                   │"
-echo "  ├─────────────────────────────┼──────────────────────────────────────┤"
-echo "  │ APP_KEY                     │ Railway/Render (generar con artisan) │"
-echo "  │ DEEPSEEK_API_KEY            │ Railway/Render                       │"
-echo "  │ DB_HOST, DB_PORT, etc.      │ Railway/Render (de Supabase)         │"
-echo "  │ FRONTEND_URL                │ Railway/Render                       │"
-echo "  │ NEXT_PUBLIC_API_URL         │ Vercel                               │"
-echo "  └─────────────────────────────┴──────────────────────────────────────┘"
+echo "  Base de datos:"
+  echo "  ─────────────────────────────────────────"
+  echo "  Motor:        PostgreSQL (Supabase)"
+  echo "  Host:         $DB_HOST"
+  echo "  Puerto:       $DB_PORT"
+  echo "  Base:         $DB_DATABASE"
 echo ""
-echo "  Próximos pasos:"
-echo "  1. Configurar dominio personalizado (opcional)"
-echo "  2. Ejecutar migraciones en Railway/Render"
-echo "  3. Verificar que CORS funciona correctamente"
+echo "  Cache/Sesión:"
+  echo "  ─────────────────────────────────────────"
+  echo "  Redis:        ${REDIS_HOST:-No disponible (fallback a BD/archivos)}"
+echo ""
+echo "  ☁️  Cloudflare DNS:"
+echo "  ─────────────────────────────────────────"
+echo "  CNAME @        → neurocv.net   (Vercel)"
+echo "  CNAME api      → [railway-url].up.railway.app"
+echo ""
+echo "  🚀 Post-deploy:"
+echo "  ─────────────────────────────────────────"
+echo "  1. Migraciones: railway run php artisan migrate"
+echo "  2. Storage link: railway run php artisan storage:link"
+echo "  3. Verificar:   curl https://api.neurocv.net/api/health"
+echo "  4. CORS test:   curl -I https://api.neurocv.net/api -H 'Origin: https://neurocv.net'"
+echo ""
+echo "  ⚠  Notas importantes:"
+echo "  - Railway asigna $PORT automáticamente (nginx se adapta)"
+echo "  - El entrypoint genera APP_KEY automáticamente si no existe"
+echo "  - Si no hay Redis, Laravel usará sesiones en BD y cache en disco"
+echo "  - Para agregar Redis: Railway Dashboard → Add Plugin → Redis"
 echo ""
 echo "============================================"
 echo -e "${GREEN}  ✅ Deploy preparado exitosamente${NC}"
