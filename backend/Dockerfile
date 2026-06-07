@@ -9,11 +9,12 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-COPY . .
+# Copy backend files
+COPY backend/ .
 
-# Copy config files from root level (they're in backend directory)
-COPY nginx.conf /etc/nginx/sites-available/default
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Copy config files - they're in backend/ directory
+COPY backend/nginx.conf /etc/nginx/sites-available/default
+COPY backend/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
