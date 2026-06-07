@@ -11,10 +11,9 @@ WORKDIR /var/www
 
 COPY . .
 
-# Copy config files from docker/ subdirectory
-COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/zz-docker.conf
-COPY docker/nginx.conf /etc/nginx/sites-available/default
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Copy config files from root level (they're in backend directory)
+COPY nginx.conf /etc/nginx/sites-available/default
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
@@ -38,7 +37,4 @@ RUN chmod +x /var/www/docker-entrypoint.sh
 
 EXPOSE 8000
 
-# Use both ENTRYPOINT and CMD to ensure the entrypoint runs regardless
-# of Railway's runtime behavior. Railway may override one or the other.
 ENTRYPOINT ["/var/www/docker-entrypoint.sh"]
-CMD ["/var/www/docker-entrypoint.sh"]
