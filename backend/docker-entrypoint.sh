@@ -46,23 +46,9 @@ sed -i "s/^CACHE_STORE=.*/CACHE_STORE=file/" /var/www/.env
 sed -i "s/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/" /var/www/.env
 echo "Session/Cache set to file-based for reliability"
 
-# Force IPv4 for PostgreSQL connection (Railway may not have IPv6 route to Supabase)
-# Add PGSSLMODE and connection options to environment level
-echo "Setting PostgreSQL connection parameters..."
-# Export PGSSLMODE=require to force SSL and avoid IPv6 issues
+# Set SSL mode for PostgreSQL connection
+echo "Setting PostgreSQL SSL mode..."
 export PGSSLMODE=require
-# Disable IPv6 resolution for Postgres host
-DB_HOST=$(grep ^DB_HOST= /var/www/.env | cut -d= -f2)
-if [ -n "$DB_HOST" ]; then
-    # Try to get IPv4 for the host and override DB_HOST if possible
-    IPV4=$(/usr/bin/dig +short -4 "$DB_HOST" 2>/dev/null | head -1 || echo "")
-    if [ -n "$IPV4" ]; then
-        sed -i "s|^DB_HOST=.*|DB_HOST=${IPV4}|" /var/www/.env
-        echo "Resolved DB_HOST to IPv4: ${IPV4}"
-    fi
-fi
-# Also set sslmode=require in DB_URL or DB_CONNECTION
-echo "Forcing SSL mode for DB connection..."
 
 echo "=== .env content ==="
 cat /var/www/.env | grep -v PASSWORD | grep -v KEY | grep -v SECRET || true
