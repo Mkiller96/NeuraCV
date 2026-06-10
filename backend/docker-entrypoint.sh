@@ -63,6 +63,10 @@ php artisan config:cache || echo "Config cache failed (might be expected)"
 php artisan route:cache || echo "Route cache failed (might be expected)"
 php artisan view:cache || echo "View cache failed (might be expected)"
 
+# Run database migrations (creates tables if they don't exist)
+echo "=== Running migrations ==="
+php artisan migrate --force || echo "Migration failed, continuing..."
+
 # Update nginx port to the PORT env var (Railway sets this)
 sed -i "s/listen 8000/listen ${PORT:-8000}/g" /etc/nginx/sites-available/default
 
