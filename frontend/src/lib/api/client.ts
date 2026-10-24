@@ -1,4 +1,6 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production"
+  ? "https://neuracy-api.onrender.com/api"
+  : "http://localhost:8000/api");
 
 interface RequestOptions extends RequestInit {
   headers?: Record<string, string>;
