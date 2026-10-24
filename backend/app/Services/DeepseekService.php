@@ -72,6 +72,10 @@ class DeepseekService
     {
         $prompt = "Genera un currículum vitae profesional con la siguiente información del usuario:\n\n";
 
+        if (!empty($data['title'])) {
+            $prompt .= "OBJETIVO DEL CV:\n- Puesto o enfoque: {$data['title']}\n";
+        }
+
         $prompt .= "DATOS PERSONALES:\n";
         $prompt .= "- Nombre completo: {$data['full_name']}\n";
         $prompt .= "- Email: {$data['email']}\n";

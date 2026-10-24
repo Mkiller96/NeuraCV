@@ -34,31 +34,31 @@ class AIController extends Controller
             'photo_url' => 'nullable|string|max:500',
 
             // Optional: provide base info for AI to improve
-            'experiences' => 'nullable|array',
+            'experiences' => 'nullable|array|max:20',
             'experiences.*.company' => 'required_with:experiences|string|max:255',
             'experiences.*.position' => 'required_with:experiences|string|max:255',
-            'experiences.*.description' => 'nullable|string',
+            'experiences.*.description' => 'nullable|string|max:5000',
             'experiences.*.start_date' => 'required_with:experiences|string',
             'experiences.*.end_date' => 'nullable|string',
             'experiences.*.is_current' => 'sometimes|boolean',
             'experiences.*.location' => 'nullable|string|max:255',
 
-            'education' => 'nullable|array',
+            'education' => 'nullable|array|max:20',
             'education.*.institution' => 'required_with:education|string|max:255',
             'education.*.degree' => 'required_with:education|string|max:255',
             'education.*.field_of_study' => 'nullable|string|max:255',
-            'education.*.description' => 'nullable|string',
+            'education.*.description' => 'nullable|string|max:5000',
             'education.*.start_date' => 'required_with:education|string',
             'education.*.end_date' => 'nullable|string',
             'education.*.is_current' => 'sometimes|boolean',
             'education.*.grade' => 'nullable|string|max:50',
 
-            'skills' => 'nullable|array',
+            'skills' => 'nullable|array|max:50',
             'skills.*.name' => 'required_with:skills|string|max:255',
             'skills.*.category' => 'nullable|string|max:255',
             'skills.*.proficiency' => 'sometimes|integer|min:0|max:100',
 
-            'languages' => 'nullable|array',
+            'languages' => 'nullable|array|max:20',
             'languages.*.name' => 'required_with:languages|string|max:255',
             'languages.*.proficiency' => 'required_with:languages|string|in:basic,intermediate,advanced,native',
         ]);
@@ -163,8 +163,8 @@ class AIController extends Controller
 
         $validated = $request->validate([
             'section' => 'required|string|in:professional_summary,experience_description,education_description',
-            'content' => 'required|string',
-            'context' => 'nullable|string',
+            'content' => 'required|string|max:10000',
+            'context' => 'nullable|string|max:3000',
         ]);
 
         try {

@@ -22,6 +22,7 @@ Route::get('/health', function () {
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
+Route::post('/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
 Route::post('/auth/google', [AuthController::class, 'googleLogin'])->middleware('throttle:10,1');
 
 // Templates (public)
@@ -38,10 +39,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('cvs', CVController::class);
 
     // AI - Generate CV with Deepseek
-    Route::post('/cvs/generate-with-ai', [AIController::class, 'generateCV']);
+    Route::post('/cvs/generate-with-ai', [AIController::class, 'generateCV'])->middleware('throttle:10,1');
 
     // AI - Improve section
-    Route::post('/cvs/{cv}/improve-section', [AIController::class, 'improveSection']);
+    Route::post('/cvs/{cv}/improve-section', [AIController::class, 'improveSection'])->middleware('throttle:10,1');
 
     // CV nested resources
     Route::prefix('cvs/{cv}')->group(function () {

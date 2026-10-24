@@ -13,6 +13,7 @@ export default function CreateCVPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState<CreateCVPayload>({
     title: "",
@@ -59,6 +60,24 @@ export default function CreateCVPage() {
       setError(err instanceof Error ? err.message : "Error al crear el CV");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGenerateWithAI = async () => {
+    setError("");
+    if (!formData.title.trim() || !formData.full_name.trim() || !formData.email.trim()) {
+      setError("Completa el título, tu nombre y tu correo antes de generar el CV.");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const response = await api.generateCVWithAI(formData);
+      router.push(`/cvs/${response.cv.id}/edit`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo generar el CV con IA.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -262,11 +281,11 @@ export default function CreateCVPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-4">
+              <div className="flex flex-wrap items-center gap-3 pt-4">
                 <Button
                   type="submit"
                   size="lg"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isGenerating}
                 >
                   {isSubmitting ? (
                     <>
@@ -278,6 +297,19 @@ export default function CreateCVPage() {
                       <Sparkles className="h-4 w-4" />
                       Crear CV
                     </>
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={handleGenerateWithAI}
+                  disabled={isSubmitting || isGenerating}
+                >
+                  {isGenerating ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" />Generando...</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4" />Crear borrador con IA</>
                   )}
                 </Button>
                 <Link href="/dashboard">

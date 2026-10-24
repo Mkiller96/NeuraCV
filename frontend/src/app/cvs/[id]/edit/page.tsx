@@ -123,6 +123,7 @@ export default function EditCVPage() {
   // AI
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSection, setAiSection] = useState<"professional_summary" | "experience_description" | "education_description">("professional_summary");
+  const [aiItemId, setAiItemId] = useState("");
   const [aiContent, setAiContent] = useState("");
   const [aiContext, setAiContext] = useState("");
   const [aiResult, setAiResult] = useState("");
@@ -342,14 +343,36 @@ export default function EditCVPage() {
 
   const applyAiResult = async () => {
     if (!aiResult) return;
-    if (aiSection === "professional_summary") {
-      setFormData((prev) => ({ ...prev, professional_summary: aiResult }));
-      await api.updateCV(cvId, { professional_summary: aiResult });
+    setError("");
+    try {
+      if (aiSection === "professional_summary") {
+        await api.updateCV(cvId, { professional_summary: aiResult });
+        setFormData((prev) => ({ ...prev, professional_summary: aiResult }));
+      } else if (aiSection === "experience_description") {
+        const experienceId = Number(aiItemId);
+        if (!experienceId) {
+          setError("Selecciona una experiencia para aplicar el cambio.");
+          return;
+        }
+        await api.updateExperience(cvId, experienceId, { description: aiResult });
+        setExperiences((items) => items.map((item) => item.id === experienceId ? { ...item, description: aiResult } : item));
+      } else {
+        const educationId = Number(aiItemId);
+        if (!educationId) {
+          setError("Selecciona unos estudios para aplicar el cambio.");
+          return;
+        }
+        await api.updateEducation(cvId, educationId, { description: aiResult });
+        setEducation((items) => items.map((item) => item.id === educationId ? { ...item, description: aiResult } : item));
+      }
+
+      setSuccess("Contenido mejorado aplicado correctamente");
+      setTimeout(() => setSuccess(""), 3000);
+      setAiResult("");
+      setAiContent("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo guardar el cambio.");
     }
-    setSuccess("Contenido mejorado aplicado correctamente");
-    setTimeout(() => setSuccess(""), 3000);
-    setAiResult("");
-    setAiContent("");
   };
 
   if (authLoading || !isAuthenticated) {
@@ -1088,6 +1111,12 @@ export default function EditCVPage() {
                       </div>
                     ))}
                   </div>
+                  <div className="mt-5 flex justify-end">
+                    <Button onClick={handleAssignTemplate} disabled={!selectedTemplateId}>
+                      <Palette className="h-4 w-4" />
+                      Aplicar plantilla
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1110,7 +1139,13 @@ export default function EditCVPage() {
                       </label>
                       <select
                         value={aiSection}
-                        onChange={(e) => setAiSection(e.target.value as typeof aiSection)}
+                        onChange={(e) => {
+                          const section = e.target.value as typeof aiSection;
+                          setAiSection(section);
+                          setAiItemId("");
+                          setAiResult("");
+                          setAiContent(section === "professional_summary" ? formData.professional_summary : "");
+                        }}
                         className="block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                       >
                         <option value="professional_summary">Resumen profesional</option>
@@ -1118,6 +1153,29 @@ export default function EditCVPage() {
                         <option value="education_description">Descripción de educación</option>
                       </select>
                     </div>
+                    {aiSection !== "professional_summary" && (
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                          {aiSection === "experience_description" ? "Experiencia" : "Estudios"}
+                        </label>
+                        <select
+                          value={aiItemId}
+                          onChange={(event) => {
+                            const id = event.target.value;
+                            setAiItemId(id);
+                            const items = aiSection === "experience_description" ? experiences : education;
+                            const selected = items.find((item) => item.id === Number(id));
+                            setAiContent(selected?.description ?? "");
+                          }}
+                          className="block w-full rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                        >
+                          <option value="">Selecciona una sección</option>
+                          {aiSection === "experience_description"
+                            ? experiences.map((item) => <option key={item.id} value={item.id}>{item.position} · {item.company}</option>)
+                            : education.map((item) => <option key={item.id} value={item.id}>{item.degree} · {item.institution}</option>)}
+                        </select>
+                      </div>
+                    )}
                     <div>
                       <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1">
                         Contenido actual
@@ -1171,12 +1229,7 @@ export default function EditCVPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => {
-                              if (aiSection === "professional_summary") {
-                                setFormData((prev) => ({ ...prev, professional_summary: aiResult }));
-                              }
-                              setAiResult("");
-                            }}
+                          onClick={applyAiResult}
                           >
                             Aplicar cambios
                           </Button>

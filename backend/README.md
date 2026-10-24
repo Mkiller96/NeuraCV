@@ -17,6 +17,13 @@ php artisan serve --host=127.0.0.1 --port=8000
 Configura `DEEPSEEK_API_KEY` en `.env` para habilitar la generación y mejora de
 CV con IA. La clave es opcional para el resto de la API.
 
+Para probar la recuperación por correo localmente, configura un SMTP real en
+`MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`,
+`MAIL_SCHEME` y `MAIL_FROM_ADDRESS`. La aplicación usa el broker de contraseñas
+de Laravel, limita los tokens a 60 minutos y envía al formulario de
+`/reset-password` del frontend. El mailer `log` no envía correos y el endpoint
+devuelve `503` mientras no haya transporte de correo configurado.
+
 ## Render
 
 El servicio se despliega desde la carpeta `backend` con Docker. Configura en
@@ -29,7 +36,10 @@ Render estas variables antes de iniciar el servicio:
 - `DB_CONNECTION=pgsql` y una conexión PostgreSQL válida mediante `DB_URL` o
   `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME` y `DB_PASSWORD`.
 - `FRONTEND_URL=https://www.neurocv.net`
-- `DEEPSEEK_API_KEY` si se quiere activar la IA.
+- `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_SCHEME`, `MAIL_USERNAME`,
+  `MAIL_PASSWORD` y `MAIL_FROM_ADDRESS` para envío de correo.
+- `DEEPSEEK_API_KEY` para activar la generación y mejora de texto con IA.
+- `GOOGLE_CLIENT_ID` para verificar las credenciales de Google.
 
 No apuntes `DB_HOST` a `localhost` ni uses SQLite para datos de cuentas o CV en
 Render: el disco del servicio gratuito no conserva los cambios entre instancias.
@@ -53,6 +63,7 @@ el origen exacto `https://www.neurocv.net` mediante `FRONTEND_URL`.
 - Generación y mejora de texto de CV con DeepSeek.
 - `GET /api/health` para comprobar que el servicio responde.
 
-La recuperación de contraseña por correo aún requiere configurar el envío de
-email y un flujo de restablecimiento real. El botón de Google del frontend es
-informativo y todavía no inicia OAuth. No hay cobro de suscripciones.
+La recuperación de contraseña requiere configurar un proveedor SMTP en Render
+y publicar el mismo `GOOGLE_CLIENT_ID` como `NEXT_PUBLIC_GOOGLE_CLIENT_ID` en
+Vercel. Para Google Identity Services, registra `https://www.neurocv.net` como
+origen JavaScript autorizado en Google Cloud. No hay cobro de suscripciones.

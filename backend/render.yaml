@@ -35,6 +35,16 @@ services:
         sync: false
       - key: DB_PASSWORD
         sync: false
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
       # ==========================================
       # Variables fijas (no necesitan cambios)
       # ==========================================
@@ -46,6 +56,8 @@ services:
         value: https://neuracy-api.onrender.com
       - key: APP_LOCALE
         value: es
+      - key: APP_NAME
+        value: NeuroCV
       - key: APP_FALLBACK_LOCALE
         value: en
       - key: APP_FAKER_LOCALE
@@ -72,5 +84,15 @@ services:
         value: require
       - key: FRONTEND_URL
         value: https://www.neurocv.net
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_SCHEME
+        value: smtps
+      - key: MAIL_PORT
+        value: "465"
+      - key: MAIL_FROM_ADDRESS
+        value: noreply@neurocv.net
+      - key: MAIL_FROM_NAME
+        value: NeuroCV
       - key: SANCTUM_STATEFUL_DOMAINS
         value: neurocv.net,www.neurocv.net,localhost:3000

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api/client";
 import { Sparkles, ArrowLeft, Mail, CheckCircle2, Loader2 } from "lucide-react";
 
 export default function ForgotPasswordPage() {
@@ -17,20 +18,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === "production"
-        ? "https://neuracy-api.onrender.com/api"
-        : "http://localhost:8000/api");
-      const response = await fetch(`${API_URL}/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.message || "Error al enviar el correo");
-      }
-
+      await api.forgotPassword({ email });
       setIsSent(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al enviar el correo");

@@ -129,6 +129,17 @@ export interface LoginPayload {
   password: string;
 }
 
+export interface ForgotPasswordPayload {
+  email: string;
+}
+
+export interface ResetPasswordPayload {
+  token: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+}
+
 export interface CreateCVPayload {
   title: string;
   full_name: string;
@@ -270,6 +281,18 @@ export const api = {
 
   login: (data: LoginPayload) =>
     request<AuthResponse>("/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  forgotPassword: (data: ForgotPasswordPayload) =>
+    request<MessageResponse>("/forgot-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  resetPassword: (data: ResetPasswordPayload) =>
+    request<MessageResponse>("/reset-password", {
       method: "POST",
       body: JSON.stringify(data),
     }),

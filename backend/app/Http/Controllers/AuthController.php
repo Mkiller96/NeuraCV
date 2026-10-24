@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -72,20 +75,57 @@ class AuthController extends Controller
 
     public function forgotPassword(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'email' => 'required|string|email|exists:users,email',
-        ]);
+        $validated = $request->validate(['email' => 'required|string|email|max:255']);
 
-        // Generate a reset token
-        $token = Str::random(60);
+        $mailer = config('mail.default');
+        $mailConfig = config("mail.mailers.{$mailer}", []);
+        if (in_array($mailer, ['log', 'array'], true) || empty($mailConfig['host']) || $mailConfig['host'] === '127.0.0.1') {
+            return response()->json(['message' => 'La recuperación por correo aún no está configurada.'], 503);
+        }
 
-        // Store token in password_resets table (or cache)
-        // For simplicity, we'll just return a success message
-        // In production, you'd send an email with the reset link
+        try {
+            // Always return the same response to avoid exposing whether an account exists.
+            Password::sendResetLink(['email' => $validated['email']]);
+        } catch (\Throwable $exception) {
+            Log::warning('Password reset email could not be sent', ['exception' => $exception::class]);
+
+            return response()->json(['message' => 'No se pudo enviar el correo ahora. Inténtalo más tarde.'], 503);
+        }
 
         return response()->json([
-            'message' => 'If an account exists with that email, you will receive a password reset link.',
+            'message' => 'Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu contraseña.',
         ]);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'token' => 'required|string',
+            'email' => 'required|string|email|max:255',
+            'password' => ['required', 'string', 'confirmed', PasswordRule::min(8)],
+        ]);
+
+        $status = Password::reset(
+            $validated,
+            function (User $user, string $password): void {
+                $user->forceFill([
+                    'password' => $password,
+                    'remember_token' => Str::random(60),
+                ])->save();
+
+                // Revoke existing sessions after the credential changes.
+                $user->tokens()->delete();
+                event(new PasswordReset($user));
+            }
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            return response()->json([
+                'message' => 'El enlace ha caducado o no es válido. Solicita uno nuevo.',
+            ], 422);
+        }
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente.']);
     }
 
     public function googleLogin(Request $request): JsonResponse
@@ -111,7 +151,16 @@ class AuthController extends Controller
 
             $googleUser = $response->json();
 
-            if (($googleUser['aud'] ?? null) !== $clientId || ! filter_var($googleUser['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            $validIssuer = in_array($googleUser['iss'] ?? null, [
+                'accounts.google.com',
+                'https://accounts.google.com',
+            ], true);
+
+            if (($googleUser['aud'] ?? null) !== $clientId
+                || ! $validIssuer
+                || (int) ($googleUser['exp'] ?? 0) <= time()
+                || ! filter_var($googleUser['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                || empty($googleUser['email'])) {
                 return response()->json(['message' => 'Invalid Google credential'], 401);
             }
 
