@@ -3,6 +3,44 @@ set -e
 
 echo "=== NeuraCV Docker Entrypoint ==="
 
+# Render does not preserve the container filesystem between deployments. Fail
+# before starting a half-configured API instead of generating ephemeral secrets
+# or waiting for migrations to time out against localhost.
+if [ "${RENDER:-false}" = "true" ]; then
+    if [ -z "${APP_KEY:-}" ]; then
+        echo "ERROR: APP_KEY is required in the Render environment." >&2
+        exit 1
+    fi
+
+    if [ "${DB_CONNECTION:-}" != "pgsql" ]; then
+        echo "ERROR: DB_CONNECTION must be pgsql on Render; use a persistent PostgreSQL database." >&2
+        exit 1
+    fi
+
+    if [ -z "${DB_URL:-}" ]; then
+        for variable in DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD; do
+            case "$variable" in
+                DB_HOST) value="${DB_HOST:-}" ;;
+                DB_PORT) value="${DB_PORT:-}" ;;
+                DB_DATABASE) value="${DB_DATABASE:-}" ;;
+                DB_USERNAME) value="${DB_USERNAME:-}" ;;
+                DB_PASSWORD) value="${DB_PASSWORD:-}" ;;
+            esac
+            if [ -z "$value" ]; then
+                echo "ERROR: $variable is required when DB_URL is not set." >&2
+                exit 1
+            fi
+        done
+
+        case "$DB_HOST" in
+            localhost|127.0.0.1)
+                echo "ERROR: DB_HOST points to this container. Configure a reachable PostgreSQL service." >&2
+                exit 1
+                ;;
+        esac
+    fi
+fi
+
 # Ensure .env exists
 if [ ! -f /var/www/.env ]; then
     if [ -f /var/www/.env.example ]; then
@@ -16,46 +54,12 @@ if [ ! -f /var/www/.env ]; then
     fi
 fi
 
-# Override/add environment variables passed by Railway
-if [ -f /var/www/.env ]; then
-    env | while IFS='=' read -r key value; do
-        # Skip shell-specific variables
-        case "$key" in
-            HOME|PATH|PWD|SHLVL|_|HOSTNAME|TERM|LS_COLORS|LC_ALL|LANG|DEBIAN_FRONTEND|PHP_INI_DIR|PHP_CFLAGS|PHP_LDFLAGS|PHP_EXTRA_BUILD_DEPS|PHP_EXTRA_CONFIGURE_ARGS|PHPIZE_DEPS|GPG_KEYS|PHP_VERSION|PHP_ASC_URL|PHP_SHA256|PHP_URL|PHP_SELF_DIR|PHP_SELF|COMPOSER_ALLOW_SUPERUSER|COMPOSER_HOME|COMPOSER_MAX_PARALLEL_HTTP|COMPOSER_MEMORY_LIMIT|PHP_LDFLAGS|PHP_CFLAGS|PHP_CPPFLAGS)
-                continue
-                ;;
-        esac
-        # Skip empty values
-        if [ -n "$value" ]; then
-            # Escape the value for sed replacement
-            escaped_value=$(echo "$value" | sed 's/[\/&]/\\&/g')
-            # If key exists in .env, replace it; otherwise append it
-            if grep -q "^${key}=" /var/www/.env; then
-                sed -i "s|^${key}=.*|${key}=${escaped_value}|" /var/www/.env
-            else
-                echo "${key}=${value}" >> /var/www/.env
-            fi
-        fi
-    done
+# Generate a local development key only. Production must receive a stable
+# APP_KEY through the hosting provider's secret environment variables.
+if [ -z "${APP_KEY:-}" ]; then
+    echo "=== Generating local app key ==="
+    php artisan key:generate --force
 fi
-
-# Add production-safe fallback for services that don't require DB
-echo "Setting safe defaults for production..."
-sed -i "s/^SESSION_DRIVER=.*/SESSION_DRIVER=file/" /var/www/.env
-sed -i "s/^CACHE_STORE=.*/CACHE_STORE=file/" /var/www/.env
-sed -i "s/^QUEUE_CONNECTION=.*/QUEUE_CONNECTION=sync/" /var/www/.env
-echo "Session/Cache set to file-based for reliability"
-
-# Set SSL mode for PostgreSQL connection
-echo "Setting PostgreSQL SSL mode..."
-export PGSSLMODE=require
-
-echo "=== .env content ==="
-cat /var/www/.env | grep -v PASSWORD | grep -v KEY | grep -v SECRET || true
-
-# Generate app key if not set
-echo "=== Generating app key ==="
-php artisan key:generate --force
 
 # Cache Laravel config, routes, and views
 echo "=== Caching config ==="
@@ -65,7 +69,12 @@ php artisan view:cache || echo "View cache failed (might be expected)"
 
 # Run database migrations (creates tables if they don't exist)
 echo "=== Running migrations ==="
-php artisan migrate --force || echo "Migration failed, continuing..."
+php artisan migrate --force
+
+# Keep the public catalog available after every deploy. This seeder is
+# idempotent and does not create demo users or overwrite user data.
+echo "=== Seeding CV templates ==="
+php artisan db:seed --class=TemplateSeeder --force
 
 # Update nginx port to the PORT env var (Railway sets this)
 sed -i "s/listen 8000/listen ${PORT:-8000}/g" /etc/nginx/sites-available/default

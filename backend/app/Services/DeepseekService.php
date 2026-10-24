@@ -12,7 +12,7 @@ class DeepseekService
 
     public function __construct()
     {
-        $this->apiKey = config('services.deepseek.api_key');
+        $this->apiKey = (string) config('services.deepseek.api_key', '');
     }
 
     /**
@@ -20,12 +20,13 @@ class DeepseekService
      */
     public function generateCV(array $userData): array
     {
+        $this->ensureConfigured();
         $prompt = $this->buildCVPrompt($userData);
 
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->apiKey,
             'Content-Type' => 'application/json',
-        ])->post($this->baseUrl . '/chat/completions', [
+        ])->timeout(45)->post($this->baseUrl . '/chat/completions', [
             'model' => 'deepseek-chat',
             'messages' => [
                 [
@@ -162,7 +163,9 @@ class DeepseekService
 
 IMPORTANTE: 
 - Genera descripciones profesionales y detalladas en español.
-- Si no se proporcionaron experiencias/educación, genera ejemplos relevantes basados en el perfil.
+- Nunca inventes empresas, puestos, estudios, fechas, certificaciones, idiomas ni habilidades del usuario.
+- Conserva sus hechos y mejora únicamente su redacción.
+- Si no se proporcionaron experiencias o estudios, devuelve esos arrays vacíos.
 - Para habilidades, asigna niveles de proficiencia realistas (0-100).
 - Para idiomas, usa solo: basic, intermediate, advanced, native.
 - No incluyas campos que no estén en la estructura.
@@ -176,6 +179,7 @@ IMPORTANTE:
      */
     public function improveSection(string $sectionType, string $content, ?string $context = null): string
     {
+        $this->ensureConfigured();
         $prompt = "Mejora y expande la siguiente sección de un currículum vitae.\n\n";
         $prompt .= "Sección: {$sectionType}\n";
         $prompt .= "Contenido actual:\n{$content}\n";
@@ -189,7 +193,7 @@ IMPORTANTE:
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $this->apiKey,
             'Content-Type' => 'application/json',
-        ])->post($this->baseUrl . '/chat/completions', [
+        ])->timeout(45)->post($this->baseUrl . '/chat/completions', [
             'model' => 'deepseek-chat',
             'messages' => [
                 ['role' => 'system', 'content' => 'Eres un experto en redacción de currículums vitae. Mejora el contenido manteniendo profesionalismo y relevancia. Responde solo con el contenido mejorado.'],
@@ -205,5 +209,12 @@ IMPORTANTE:
         }
 
         return trim($response->json('choices.0.message.content'));
+    }
+
+    private function ensureConfigured(): void
+    {
+        if ($this->apiKey === '') {
+            throw new \RuntimeException('La generación con IA aún no está configurada.');
+        }
     }
 }

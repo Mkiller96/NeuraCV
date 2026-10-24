@@ -39,4 +39,8 @@ return [
         'api_key' => env('DEEPSEEK_API_KEY'),
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+    ],
+
 ];

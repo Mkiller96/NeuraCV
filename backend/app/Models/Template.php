@@ -11,6 +11,7 @@ class Template extends Model
         'name',
         'slug',
         'description',
+        'category',
         'thumbnail_url',
         'preview_url',
         'is_premium',

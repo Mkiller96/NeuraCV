@@ -4,18 +4,25 @@ use App\Http\Controllers\AIController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CVController;
 use App\Http\Controllers\TemplateController;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 // Health check (sin verificación de DB ni Redis)
 Route::get('/health', function () {
-    return response()->json(['status' => 'ok', 'time' => now()]);
+    try {
+        DB::connection()->getPdo();
+
+        return response()->json(['status' => 'ok', 'database' => 'connected', 'time' => now()]);
+    } catch (\Throwable $exception) {
+        return response()->json(['status' => 'error', 'database' => 'unavailable'], 503);
+    }
 });
 
 // Public routes
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::post('/auth/google', [AuthController::class, 'googleLogin']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
+Route::post('/auth/google', [AuthController::class, 'googleLogin'])->middleware('throttle:10,1');
 
 // Templates (public)
 Route::get('/templates', [TemplateController::class, 'index']);

@@ -6,6 +6,8 @@ use App\Models\CV;
 use App\Services\DeepseekService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AIController extends Controller
 {
@@ -38,6 +40,7 @@ class AIController extends Controller
             'experiences.*.description' => 'nullable|string',
             'experiences.*.start_date' => 'required_with:experiences|string',
             'experiences.*.end_date' => 'nullable|string',
+            'experiences.*.is_current' => 'sometimes|boolean',
             'experiences.*.location' => 'nullable|string|max:255',
 
             'education' => 'nullable|array',
@@ -47,10 +50,13 @@ class AIController extends Controller
             'education.*.description' => 'nullable|string',
             'education.*.start_date' => 'required_with:education|string',
             'education.*.end_date' => 'nullable|string',
+            'education.*.is_current' => 'sometimes|boolean',
             'education.*.grade' => 'nullable|string|max:50',
 
             'skills' => 'nullable|array',
             'skills.*.name' => 'required_with:skills|string|max:255',
+            'skills.*.category' => 'nullable|string|max:255',
+            'skills.*.proficiency' => 'sometimes|integer|min:0|max:100',
 
             'languages' => 'nullable|array',
             'languages.*.name' => 'required_with:languages|string|max:255',
@@ -62,78 +68,72 @@ class AIController extends Controller
             $aiContent = $this->deepseek->generateCV($validated);
 
             // Create the CV with AI-generated content
-            $cv = CV::create([
-                'user_id' => $request->user()->id,
-                'title' => $validated['title'],
-                'full_name' => $validated['full_name'],
-                'email' => $validated['email'],
-                'phone' => $validated['phone'] ?? null,
-                'address' => $validated['address'] ?? null,
-                'website' => $validated['website'] ?? null,
-                'linkedin' => $validated['linkedin'] ?? null,
-                'github' => $validated['github'] ?? null,
-                'professional_summary' => $aiContent['professional_summary'] ?? $validated['professional_summary'] ?? null,
-                'photo_url' => $validated['photo_url'] ?? null,
-            ]);
+            $cv = DB::transaction(function () use ($request, $validated, $aiContent) {
+                $cv = CV::create([
+                    'user_id' => $request->user()->id,
+                    'title' => $validated['title'],
+                    'full_name' => $validated['full_name'],
+                    'email' => $validated['email'],
+                    'phone' => $validated['phone'] ?? null,
+                    'address' => $validated['address'] ?? null,
+                    'website' => $validated['website'] ?? null,
+                    'linkedin' => $validated['linkedin'] ?? null,
+                    'github' => $validated['github'] ?? null,
+                    'professional_summary' => $aiContent['professional_summary'] ?? $validated['professional_summary'] ?? null,
+                    'photo_url' => $validated['photo_url'] ?? null,
+                ]);
 
-            // Create experiences
-            if (isset($aiContent['experiences'])) {
-                foreach ($aiContent['experiences'] as $index => $exp) {
+                // Keep factual details supplied by the user; AI only rewrites descriptions.
+                foreach ($validated['experiences'] ?? [] as $index => $provided) {
+                    $exp = $aiContent['experiences'][$index] ?? [];
                     $cv->experiences()->create([
-                        'company' => $exp['company'],
-                        'position' => $exp['position'],
-                        'description' => $exp['description'] ?? null,
-                        'start_date' => $exp['start_date'],
-                        'end_date' => $exp['end_date'] ?? null,
-                        'is_current' => $exp['is_current'] ?? empty($exp['end_date']),
-                        'location' => $exp['location'] ?? null,
+                        'company' => $provided['company'],
+                        'position' => $provided['position'],
+                        'description' => $exp['description'] ?? $provided['description'] ?? null,
+                        'start_date' => $this->formatDate($provided['start_date']),
+                        'end_date' => empty($provided['end_date']) ? null : $this->formatDate($provided['end_date']),
+                        'is_current' => $provided['is_current'] ?? empty($provided['end_date']),
+                        'location' => $provided['location'] ?? null,
                         'sort_order' => $index,
                     ]);
                 }
-            }
 
-            // Create education
-            if (isset($aiContent['education'])) {
-                foreach ($aiContent['education'] as $index => $edu) {
+                foreach ($validated['education'] ?? [] as $index => $provided) {
+                    $edu = $aiContent['education'][$index] ?? [];
                     $cv->education()->create([
-                        'institution' => $edu['institution'],
-                        'degree' => $edu['degree'],
-                        'field_of_study' => $edu['field_of_study'] ?? null,
-                        'description' => $edu['description'] ?? null,
-                        'start_date' => $edu['start_date'],
-                        'end_date' => $edu['end_date'] ?? null,
-                        'is_current' => $edu['is_current'] ?? empty($edu['end_date']),
-                        'grade' => $edu['grade'] ?? null,
+                        'institution' => $provided['institution'],
+                        'degree' => $provided['degree'],
+                        'field_of_study' => $provided['field_of_study'] ?? null,
+                        'description' => $edu['description'] ?? $provided['description'] ?? null,
+                        'start_date' => $this->formatDate($provided['start_date']),
+                        'end_date' => empty($provided['end_date']) ? null : $this->formatDate($provided['end_date']),
+                        'is_current' => $provided['is_current'] ?? empty($provided['end_date']),
+                        'grade' => $provided['grade'] ?? null,
                         'sort_order' => $index,
                     ]);
                 }
-            }
 
-            // Create skills
-            if (isset($aiContent['skills'])) {
-                foreach ($aiContent['skills'] as $index => $skill) {
+                foreach ($validated['skills'] ?? [] as $index => $provided) {
+                    $skill = $aiContent['skills'][$index] ?? [];
                     $cv->skills()->create([
-                        'name' => $skill['name'],
-                        'category' => $skill['category'] ?? null,
-                        'proficiency' => $skill['proficiency'] ?? 50,
+                        'name' => $provided['name'],
+                        'category' => $skill['category'] ?? $provided['category'] ?? null,
+                        'proficiency' => $skill['proficiency'] ?? $provided['proficiency'] ?? 50,
                         'sort_order' => $index,
                     ]);
                 }
-            }
 
-            // Create languages
-            if (isset($aiContent['languages'])) {
-                foreach ($aiContent['languages'] as $index => $lang) {
+                foreach ($validated['languages'] ?? [] as $index => $provided) {
                     $cv->languages()->create([
-                        'name' => $lang['name'],
-                        'proficiency' => $lang['proficiency'] ?? 'intermediate',
+                        'name' => $provided['name'],
+                        'proficiency' => $provided['proficiency'],
                         'sort_order' => $index,
                     ]);
                 }
-            }
 
-            // Reload with relationships
-            $cv->load(['experiences', 'education', 'skills', 'languages']);
+                $cv->load(['experiences', 'education', 'skills', 'languages']);
+                return $cv;
+            });
 
             return response()->json([
                 'message' => 'CV generado con IA exitosamente',
@@ -141,10 +141,13 @@ class AIController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
+            Log::error('CV generation failed', ['exception_class' => $e::class]);
+            $status = str_contains($e->getMessage(), 'aún no está configurada') ? 503 : 502;
             return response()->json([
-                'message' => 'Error al generar el CV con IA',
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => $status === 503
+                    ? 'La generación con IA aún no está configurada.'
+                    : 'No se pudo generar el CV ahora. Inténtalo de nuevo.',
+            ], $status);
         }
     }
 
@@ -177,10 +180,18 @@ class AIController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('CV section improvement failed', ['exception_class' => $e::class]);
+            $status = str_contains($e->getMessage(), 'aún no está configurada') ? 503 : 502;
             return response()->json([
-                'message' => 'Error al mejorar el contenido',
-                'error' => $e->getMessage(),
-            ], 500);
+                'message' => $status === 503
+                    ? 'La generación con IA aún no está configurada.'
+                    : 'No se pudo mejorar el contenido ahora. Inténtalo de nuevo.',
+            ], $status);
         }
+    }
+
+    private function formatDate(string $date): string
+    {
+        return preg_match('/^\d{4}-\d{2}$/', $date) ? $date . '-01' : $date;
     }
 }

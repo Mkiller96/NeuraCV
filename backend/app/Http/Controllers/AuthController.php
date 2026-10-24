@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -93,9 +94,14 @@ class AuthController extends Controller
             'credential' => 'required|string',
         ]);
 
+        $clientId = config('services.google.client_id');
+        if (! $clientId) {
+            return response()->json(['message' => 'El inicio de sesión con Google aún no está configurado.'], 503);
+        }
+
         try {
             // Verify the Google token
-            $response = Http::get('https://oauth2.googleapis.com/tokeninfo', [
+            $response = Http::timeout(10)->get('https://oauth2.googleapis.com/tokeninfo', [
                 'id_token' => $validated['credential'],
             ]);
 
@@ -104,6 +110,10 @@ class AuthController extends Controller
             }
 
             $googleUser = $response->json();
+
+            if (($googleUser['aud'] ?? null) !== $clientId || ! filter_var($googleUser['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                return response()->json(['message' => 'Invalid Google credential'], 401);
+            }
 
             // Find or create user
             $user = User::where('email', $googleUser['email'])->first();
@@ -124,6 +134,7 @@ class AuthController extends Controller
                 'token' => $token,
             ]);
         } catch (\Exception $e) {
+            Log::warning('Google authentication failed', ['exception' => $e::class]);
             return response()->json(['message' => 'Failed to authenticate with Google'], 500);
         }
     }
