@@ -41,10 +41,14 @@ services:
         sync: false
       - key: MAIL_PASSWORD
         sync: false
-      - key: DEEPSEEK_API_KEY
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
         sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
+      - key: WORKERS_AI_MODEL
+        value: '@cf/meta/llama-3.1-8b-instruct'
       # ==========================================
       # Variables fijas (no necesitan cambios)
       # ==========================================

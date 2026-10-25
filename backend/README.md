@@ -14,8 +14,11 @@ php artisan migrate --seed
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
-Configura `DEEPSEEK_API_KEY` en `.env` para habilitar la generación y mejora de
-CV con IA. La clave es opcional para el resto de la API.
+Configura `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN` en `.env` para
+habilitar la generación y mejora de CV con Workers AI. El token debe estar
+limitado a Workers AI y nunca debe exponerse al frontend. El modelo por defecto
+es `@cf/meta/llama-3.1-8b-instruct`; puedes cambiarlo con `WORKERS_AI_MODEL`.
+La API no cambia automáticamente a un proveedor de pago si se agota el cupo.
 
 Para probar la recuperación por correo localmente, configura un SMTP real en
 `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`,
@@ -38,7 +41,10 @@ Render estas variables antes de iniciar el servicio:
 - `FRONTEND_URL=https://www.neurocv.net`
 - `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_SCHEME`, `MAIL_USERNAME`,
   `MAIL_PASSWORD` y `MAIL_FROM_ADDRESS` para envío de correo.
-- `DEEPSEEK_API_KEY` para activar la generación y mejora de texto con IA.
+- `CLOUDFLARE_ACCOUNT_ID` y `CLOUDFLARE_API_TOKEN` para activar la generación
+  y mejora de texto con Workers AI. Crea el token en Cloudflare desde la sección
+  Workers AI y guarda ambos valores como secretos en Render.
+- `WORKERS_AI_MODEL` (opcional; por defecto `@cf/meta/llama-3.1-8b-instruct`).
 - `GOOGLE_CLIENT_ID` para verificar las credenciales de Google.
 
 No apuntes `DB_HOST` a `localhost` ni uses SQLite para datos de cuentas o CV en
@@ -60,7 +66,7 @@ el origen exacto `https://www.neurocv.net` mediante `FRONTEND_URL`.
 - Registro, inicio y cierre de sesión con tokens de Sanctum.
 - Perfil autenticado y operaciones CRUD de CV, experiencia, estudios, habilidades,
   idiomas y plantillas.
-- Generación y mejora de texto de CV con DeepSeek.
+- Generación y mejora de texto de CV con Cloudflare Workers AI.
 - `GET /api/health` para comprobar que el servicio responde.
 
 La recuperación de contraseña requiere configurar un proveedor SMTP en Render

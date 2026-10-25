@@ -3,7 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\CV;
-use App\Services\DeepseekService;
+use App\Services\WorkersAIException;
+use App\Services\WorkersAIService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class AIController extends Controller
 {
     public function __construct(
-        protected DeepseekService $deepseek
+        protected WorkersAIService $workersAI
     ) {}
 
     /**
@@ -64,8 +65,7 @@ class AIController extends Controller
         ]);
 
         try {
-            // Call Deepseek to generate/enhance the CV content
-            $aiContent = $this->deepseek->generateCV($validated);
+            $aiContent = $this->workersAI->generateCV($validated);
 
             // Create the CV with AI-generated content
             $cv = DB::transaction(function () use ($request, $validated, $aiContent) {
@@ -142,10 +142,10 @@ class AIController extends Controller
 
         } catch (\Exception $e) {
             Log::error('CV generation failed', ['exception_class' => $e::class]);
-            $status = str_contains($e->getMessage(), 'aún no está configurada') ? 503 : 502;
+            $status = $e instanceof WorkersAIException ? $e->httpStatus : 502;
             return response()->json([
                 'message' => $status === 503
-                    ? 'La generación con IA aún no está configurada.'
+                    ? $e->getMessage()
                     : 'No se pudo generar el CV ahora. Inténtalo de nuevo.',
             ], $status);
         }
@@ -168,7 +168,7 @@ class AIController extends Controller
         ]);
 
         try {
-            $improved = $this->deepseek->improveSection(
+            $improved = $this->workersAI->improveSection(
                 $validated['section'],
                 $validated['content'],
                 $validated['context'] ?? null
@@ -181,10 +181,10 @@ class AIController extends Controller
 
         } catch (\Exception $e) {
             Log::error('CV section improvement failed', ['exception_class' => $e::class]);
-            $status = str_contains($e->getMessage(), 'aún no está configurada') ? 503 : 502;
+            $status = $e instanceof WorkersAIException ? $e->httpStatus : 502;
             return response()->json([
                 'message' => $status === 503
-                    ? 'La generación con IA aún no está configurada.'
+                    ? $e->getMessage()
                     : 'No se pudo mejorar el contenido ahora. Inténtalo de nuevo.',
             ], $status);
         }
