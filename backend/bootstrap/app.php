@@ -17,7 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
 
-        $middleware->statefulApi();
+        // The API authenticates with Sanctum bearer tokens stored by the
+        // frontend. Do not enable Sanctum's stateful cookie middleware here:
+        // it would enforce CSRF tokens on cross-origin API requests from Vercel.
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
