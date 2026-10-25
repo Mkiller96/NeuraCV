@@ -1,5 +1,8 @@
 # Deploy NeuraCV Backend to Render.com via API
-$token = "rnd_6yLpUP9Ju9tIz3ipo4mTJ3g940TO"
+$token = $env:RENDER_API_TOKEN
+if ([string]::IsNullOrWhiteSpace($token)) {
+    throw "Set the RENDER_API_TOKEN environment variable before running this script."
+}
 $serviceId = "srv-d8g8c3cp3tds738ahrv0"
 
 $headers = @{
